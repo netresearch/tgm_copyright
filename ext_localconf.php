@@ -10,6 +10,8 @@ if (!defined('TYPO3')) {
 	[
 		\TGM\TgmCopyright\Controller\CopyrightController::class => 'list',
     ],
+    [],
+    'CType'
 );
 
 \TYPO3\CMS\Extbase\Utility\ExtensionUtility::configurePlugin(
@@ -21,5 +23,6 @@ if (!defined('TYPO3')) {
 	// non-cacheable actions
 	[
 		\TGM\TgmCopyright\Controller\CopyrightController::class => 'sitemap',
-    ]
+    ],
+    'CType'
 );

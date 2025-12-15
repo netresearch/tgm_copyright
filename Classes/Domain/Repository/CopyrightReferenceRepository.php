@@ -28,17 +28,28 @@ namespace TGM\TgmCopyright\Domain\Repository;
  ***************************************************************/
 
 
+use Psr\Http\Message\ServerRequestInterface;
+use TGM\TgmCopyright\Domain\Model\CopyrightReference;
+use TYPO3\CMS\Core\Context\Context;
 use TYPO3\CMS\Core\Database\Connection;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Database\Query\QueryHelper;
 use TYPO3\CMS\Core\Database\Query\Restriction\DeletedRestriction;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
+use TYPO3\CMS\Extbase\Persistence\Generic\Mapper\DataMapper;
 
 /**
  * The repository for Copyrights
  */
 class CopyrightReferenceRepository extends \TYPO3\CMS\Extbase\Persistence\Repository
 {
+    public function __construct(
+        private readonly ConnectionPool $connectionPool,
+        private readonly Context $context,
+        private readonly DataMapper $dataMapper,
+    ) {
+        parent::__construct();
+    }
 
     /**
      * @param array $settings
@@ -73,7 +84,7 @@ class CopyrightReferenceRepository extends \TYPO3\CMS\Extbase\Persistence\Reposi
 
         $preResults = $preQuery->execute(TRUE);
 
-        // Now check if the foreign record has a endtime field which is expired
+        // Now check if the foreign record has an endtime field which is expired
         $finalRecords = $this->filterPreResultsReturnUids($preResults);
 
         // Final select
@@ -86,17 +97,13 @@ class CopyrightReferenceRepository extends \TYPO3\CMS\Extbase\Persistence\Reposi
     }
 
     /**
-     * @param string $rootlines
+     * @param ?string $rootlines
      * @return array
      */
-    public function findForSitemap($rootlines) {
-
-        $typo3Version = new \TYPO3\CMS\Core\Information\Typo3Version();
-
-        $context = GeneralUtility::makeInstance(\TYPO3\CMS\Core\Context\Context::class);
-        $sysLanguage = (int) $context->getPropertyFromAspect('language', 'id');
-
-        $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable('sys_file_reference');
+    public function findForSitemap(?string $rootlines)
+    {
+        $sysLanguage = (int) $this->context->getPropertyFromAspect('language', 'id');
+        $queryBuilder = $this->connectionPool->getQueryBuilderForTable('sys_file_reference');
 
         $constraints = [
             $queryBuilder->expr()->eq('ref.sys_language_uid', $sysLanguage),
@@ -130,43 +137,32 @@ class CopyrightReferenceRepository extends \TYPO3\CMS\Extbase\Persistence\Reposi
             ->where(
                 ...$constraints
             )
-            ->execute();
+            ->executeQuery();
 
-        if(version_compare($typo3Version->getVersion(),'11', '<')) {
-            $preResults = $preResults->fetchAll();
-        } else {
-            $preResults = $preResults->fetchAllAssociative();
-        }
+        $preResults = $preResults->fetchAllAssociative();
 
-        // Now check if the foreign record has a endtime field which is expired
+        // Now check if the foreign record has an endtime field which is expired
         $finalRecords = $this->filterPreResultsReturnUids($preResults);
 
         // Final select
         if(false === empty($finalRecords)) {
-
-            $queryBuilder->resetQueryParts();
+            $queryBuilder = $this->connectionPool->getQueryBuilderForTable('sys_file_reference');
             $records = $queryBuilder
                 ->select('*')
                 ->from('sys_file_reference')
                 ->where(
                     $queryBuilder->expr()->in('uid', $finalRecords)
                 )
-                ->execute();
+                ->executeQuery();
 
-            if(version_compare($typo3Version->getVersion(),'11', '<')) {
-                $records = $records->fetchAll();
-                $objectManager = GeneralUtility::makeInstance(\TYPO3\CMS\Extbase\Object\ObjectManager::class);
-                $dataMapper = $objectManager->get(\TYPO3\CMS\Extbase\Persistence\Generic\Mapper\DataMapper::class);
-            } else {
-                $records = $records->fetchAllAssociative();
-                $dataMapper = GeneralUtility::makeInstance(\TYPO3\CMS\Extbase\Persistence\Generic\Mapper\DataMapper::class);
-            }
+            $records = $records->fetchAllAssociative();
 
-            return $dataMapper->map(\TGM\TgmCopyright\Domain\Model\CopyrightReference::class, $records);
+            return $this->dataMapper->map(CopyrightReference::class, $records);
         }
 
         return [];
     }
+
 
     /**
      * This function will remove results which related table records are not hidden by endtime
@@ -176,12 +172,7 @@ class CopyrightReferenceRepository extends \TYPO3\CMS\Extbase\Persistence\Reposi
     public function filterPreResultsReturnUids($preResults) {
 
         $finalRecords = [];
-
-        // Get Schema to check if tables exist before accessing them
-        /** @var Connection $connection */
-        $connection = GeneralUtility::makeInstance(ConnectionPool::class)
-            ->getConnectionForTable('tt_content');
-        $dbSchema = $connection->getSchemaInformation();
+        $dbSchema = $this->connectionPool->getConnectionForTable('tt_content')->getSchemaInformation();
 
         foreach($preResults as $preResult) {
 
@@ -189,30 +180,23 @@ class CopyrightReferenceRepository extends \TYPO3\CMS\Extbase\Persistence\Reposi
                 && (strlen($preResult['tablenames']) > 0 && strlen($preResult['uid_foreign']) > 0)
                 && true === in_array($preResult['tablenames'], $dbSchema->listTableNames())
             )
-                {
+            {
 
                 /*
                  * Thanks to the QueryBuilder we don't have to check end- and starttime, deleted, hidden manually before because of the default RestrictionContainers
                  * Just check if there is a result or not
                  */
-                $queryBuilder = GeneralUtility::makeInstance(\TYPO3\CMS\Core\Database\ConnectionPool::class)->getQueryBuilderForTable($preResult['tablenames']);
+                $queryBuilder = $this->connectionPool->getQueryBuilderForTable($preResult['tablenames']);
                 $foreignRecord = $queryBuilder
                     ->select('uid')
                     ->from($preResult['tablenames'])
                     ->where(
                         $queryBuilder->expr()->eq('uid', $queryBuilder->createNamedParameter($preResult['uid_foreign']))
                     )
-                    ->execute();
+                    ->executeQuery();
 
-                $typo3Version = new \TYPO3\CMS\Core\Information\Typo3Version();
-
-                if(version_compare($typo3Version->getVersion(),'11', '<')) {
-                    $foreignRecord = $foreignRecord->fetch();
-                } else {
-                    $foreignRecord = $foreignRecord->fetchAssociative();
-                }
-
-                if($foreignRecord === false || $foreignRecord === false) {
+                $foreignRecord = $foreignRecord->fetchAssociative();
+                if($foreignRecord === false) {
                     // Exclude if nothing found
                     continue;
                 }
@@ -231,14 +215,12 @@ class CopyrightReferenceRepository extends \TYPO3\CMS\Extbase\Persistence\Reposi
      * @return string
      * @throws \TYPO3\CMS\Core\Context\Exception\AspectNotFoundException
      */
-    public function getStatementDefaults($rootlines, $onlyCurrentPage = false) {
-        $rootlines = (string) $rootlines;
-        $context = GeneralUtility::makeInstance(\TYPO3\CMS\Core\Context\Context::class);
-        $sysLanguage = (int) $context->getPropertyFromAspect('language', 'id');
+    public function getStatementDefaults(string $rootlines, bool $onlyCurrentPage = false) {
+        $sysLanguage = (int) $this->context->getPropertyFromAspect('language', 'id');
         $defaultStatement = ' AND ref.sys_language_uid=' . $sysLanguage;
 
         if($onlyCurrentPage === true) {
-            $defaultStatement .= ' AND ref.pid=' . $GLOBALS['TSFE']->id;
+            $defaultStatement .= ' AND ref.pid=' . $this->getRequest()?->getAttribute('frontend.page.information')?->getId();
         } else if($rootlines!=='') {
             $defaultStatement .= ' AND ref.pid IN('.$this->extendPidListByChildren($rootlines).')';
         } else {
@@ -254,15 +236,12 @@ class CopyrightReferenceRepository extends \TYPO3\CMS\Extbase\Persistence\Reposi
      * @param int $recursive recursive levels
      * @return string comma separated list of ids
      */
-    private function extendPidListByChildren($pidList = '')
+    private function extendPidListByChildren(string $pidList = ''): string
     {
         $recursive = 1000;
-        // $queryGenerator = GeneralUtility::makeInstance(\TYPO3\CMS\Core\Database\QueryGenerator::class);
         $recursiveStoragePids = $pidList;
         $storagePids = GeneralUtility::intExplode(',', $pidList);
         foreach ($storagePids as $startPid) {
-            // MODIFIED: function getTreeList copied from TYPO3 11's
-            // \TYPO3\CMS\Core\Database\QueryGenerator because it has been removed in v12.
             $pids = $this->getTreeList($startPid, $recursive, 0, 1);
             if (strlen($pids) > 0) {
                 $recursiveStoragePids .= ',' . $pids;
@@ -281,11 +260,8 @@ class CopyrightReferenceRepository extends \TYPO3\CMS\Extbase\Persistence\Reposi
      * @param string $permClause
      * @return string comma separated list of descendant pages
      */
-    protected function getTreeList($id, $depth, $begin = 0, $permClause = '')
+    protected function getTreeList(int $id, int $depth, int $begin = 0, string $permClause = '')
     {
-        $depth = (int)$depth;
-        $begin = (int)$begin;
-        $id = (int)$id;
         if ($id < 0) {
             $id = abs($id);
         }
@@ -295,7 +271,7 @@ class CopyrightReferenceRepository extends \TYPO3\CMS\Extbase\Persistence\Reposi
             $theList = '';
         }
         if ($id && $depth > 0) {
-            $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable('pages');
+            $queryBuilder = $this->connectionPool->getQueryBuilderForTable('pages');
             $queryBuilder->getRestrictions()->removeAll()->add(GeneralUtility::makeInstance(DeletedRestriction::class));
             $queryBuilder->select('uid')
                 ->from('pages')
@@ -307,7 +283,7 @@ class CopyrightReferenceRepository extends \TYPO3\CMS\Extbase\Persistence\Reposi
             if ($permClause !== '') {
                 $queryBuilder->andWhere(QueryHelper::stripLogicalOperatorPrefix($permClause));
             }
-            $statement = $queryBuilder->execute();
+            $statement = $queryBuilder->executeQuery();
             while ($row = $statement->fetchAssociative()) {
                 if ($begin <= 0) {
                     $theList .= ',' . $row['uid'];
@@ -322,5 +298,10 @@ class CopyrightReferenceRepository extends \TYPO3\CMS\Extbase\Persistence\Reposi
             }
         }
         return $theList;
+    }
+
+    private function getRequest(): ServerRequestInterface
+    {
+        return $GLOBALS['TYPO3_REQUEST'];
     }
 }

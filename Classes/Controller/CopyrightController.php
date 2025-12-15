@@ -1,7 +1,6 @@
 <?php
 namespace TGM\TgmCopyright\Controller;
 
-
 /***************************************************************
  *
  *  Copyright notice
@@ -26,42 +25,38 @@ namespace TGM\TgmCopyright\Controller;
  *
  *  This copyright notice MUST APPEAR in all copies of the script!
  ***************************************************************/
+
+use Psr\Http\Message\ResponseInterface;
+use TGM\TgmCopyright\Domain\Model\CopyrightReference;
+use TGM\TgmCopyright\Domain\Repository\CopyrightReferenceRepository;
+use TYPO3\CMS\Core\Domain\Repository\PageRepository;
+use TYPO3\CMS\Core\TypoScript\TypoScriptService;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
+use TYPO3\CMS\Extbase\Mvc\Controller\ActionController;
 use TYPO3\CMS\Frontend\ContentObject\ContentObjectRenderer;
 
 /**
  * CopyrightController
  */
-class CopyrightController extends \TYPO3\CMS\Extbase\Mvc\Controller\ActionController
+class CopyrightController extends ActionController
 {
-
-    /**
-     * copyrightRepository
-     * @var \TGM\TgmCopyright\Domain\Repository\CopyrightReferenceRepository
-     */
-    protected $copyrightReferenceRepository = NULL;
-
-    /**
-     * @param \TGM\TgmCopyright\Domain\Repository\CopyrightReferenceRepository $copyrightReferenceRepository
-     */
-    public function injectCopyrightReferenceRepository(\TGM\TgmCopyright\Domain\Repository\CopyrightReferenceRepository $copyrightReferenceRepository) {
-        $this->copyrightReferenceRepository = $copyrightReferenceRepository;
+    public function __construct(
+        private readonly CopyrightReferenceRepository $copyrightReferenceRepository,
+        private readonly PageRepository $pageRepository,
+        private readonly TypoScriptService $typoScriptService
+    ) {
     }
     
     /**
      * action list
-     * @return void
      */
-    public function listAction()
+    public function listAction(): ResponseInterface
     {
         if(false === isset($this->settings['onlyCurrentPage'])) {
             $this->settings['onlyCurrentPage'] = false;
         }
 
-        if(false === isset($this->settings['onlyCurrentPage'])) {
-            $this->settings['onlyCurrentPage'] = false;
-        }
-
+        /** @var array<CopyrightReference> $copyrightReferences */
         $copyrightReferences = $this->copyrightReferenceRepository->findByRootline($this->settings);
 
         if(count($copyrightReferences) > 0) {
@@ -72,19 +67,17 @@ class CopyrightController extends \TYPO3\CMS\Extbase\Mvc\Controller\ActionContro
             'copyrightReferences' => $copyrightReferences,
             'copyrights' => $copyrightReferences,
         ]);
-        
+
         return $this->htmlResponse();
     }
 
-    public function initializeSitemapAction()
+    public function initializeSitemapAction(): void
     {
         $this->request = $this->request->withFormat('xml');
-        // $this->request->setFormat('xml');
     }
 
     /**
      * action sitemap
-     * @return void
      */
     public function sitemapAction()
     {
@@ -131,13 +124,12 @@ class CopyrightController extends \TYPO3\CMS\Extbase\Mvc\Controller\ActionContro
         }
 
         $this->view->assign('groupedReferences', $groupedReferences);
-        
+
         return $this->htmlResponse();
     }
 
     /**
      * @param \TYPO3\CMS\Extbase\Persistence\QueryResultInterface $copyrightReferences
-     * @return void
      */
     private function processExtensionReferences(&$copyrightReferences) {
 
@@ -145,8 +137,6 @@ class CopyrightController extends \TYPO3\CMS\Extbase\Mvc\Controller\ActionContro
 
         /** @var ContentObjectRenderer $contentObject */
         $contentObject = GeneralUtility::makeInstance(ContentObjectRenderer::class);
-        /** @var \TYPO3\CMS\Core\Domain\Repository\PageRepository $pageRepository */
-        $pageRepository = GeneralUtility::makeInstance(\TYPO3\CMS\Core\Domain\Repository\PageRepository::class);
 
         /** @var \TGM\TgmCopyright\Domain\Model\CopyrightReference $copyrightReference */
         foreach ($copyrightReferences as $copyrightReference) {
@@ -160,13 +150,9 @@ class CopyrightController extends \TYPO3\CMS\Extbase\Mvc\Controller\ActionContro
                 $singleExtensionTableConfiguration = $allExtensionTablesConfiguration[$copyrightReference->getTablenames()];
 
                 if(gettype($singleExtensionTableConfiguration['detailPid']) === 'array') {
+                    $tsArray = $this->typoScriptService->convertPlainArrayToTypoScriptArray($singleExtensionTableConfiguration['detailPid']);
 
-                    /** @var \TYPO3\CMS\Core\TypoScript\TypoScriptService $typoscriptService */
-
-                    $typoscriptService = GeneralUtility::makeInstance(\TYPO3\CMS\Core\TypoScript\TypoScriptService::class);
-                    $tsArray = $typoscriptService->convertPlainArrayToTypoScriptArray($singleExtensionTableConfiguration['detailPid']);
-
-                    $rawRecord = $pageRepository->getRawRecord($copyrightReference->getTablenames(), $copyrightReference->getUidForeign());
+                    $rawRecord = $this->pageRepository->getRawRecord($copyrightReference->getTablenames(), $copyrightReference->getUidForeign());
 
                     $contentObject->start($rawRecord, $copyrightReference->getTablenames());
 
@@ -192,7 +178,6 @@ class CopyrightController extends \TYPO3\CMS\Extbase\Mvc\Controller\ActionContro
 
             $copyrightReference->setUsagePids($usagePids);
             $copyrightReference->setAdditionalLinkParams($additionalLinkParams);
-
         }
     }
 }

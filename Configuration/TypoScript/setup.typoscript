@@ -84,7 +84,8 @@ image-sitemap {
     userFunc = TYPO3\CMS\Extbase\Core\Bootstrap->run
     extensionName = TgmCopyright
     pluginName = Sitemap
-    vendorName = TGM
+    controllerName = Copyright
+    actionName = sitemap
   }
 }
 [end]
