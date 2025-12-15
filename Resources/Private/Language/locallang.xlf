@@ -6,6 +6,12 @@
 			<trans-unit id="tx_tgmcopyright_domain_model_copyright">
 				<source>Copyright</source>
 			</trans-unit>
+			<trans-unit id="tabs.flexform.options">
+				<source>Settings</source>
+			</trans-unit>
+			<trans-unit id="tabs.flexform.settings">
+				<source>Configuration</source>
+			</trans-unit>
 		</body>
 	</file>
 </xliff>

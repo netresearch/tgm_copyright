@@ -6,7 +6,7 @@ namespace TGM\TgmCopyright\Domain\Repository;
  *
  *  Copyright notice
  *
- *  (c) 2016 Paul Beck <hi@toll-paul.de>, Teamgeist Medien GbR
+ *  (c) 2025 Paul Beck <p.beck@nerdost.net>, Nerdost GmbH
  *
  *  All rights reserved
  *
@@ -55,44 +55,111 @@ class CopyrightReferenceRepository extends \TYPO3\CMS\Extbase\Persistence\Reposi
      * @param array $settings
      * @return array|\TYPO3\CMS\Extbase\Persistence\QueryResultInterface
      */
-    public function findByRootline($settings) {
-
-        $pidClause = $this->getStatementDefaults($settings['rootlines'], (bool) $settings['onlyCurrentPage']);
-        $additionalClause = '';
-
-        if((int)$settings['displayDuplicateImages'] === 0) {
-            $additionalClause .= ' GROUP BY file.uid';
-        }
-
-        // First main statement, exclude by all possible exclusion reasons
-        $preQuery = $this->createQuery();
-
+    public function findByRootline($settings)
+    {
+        $sysLanguage = (int)$this->context->getPropertyFromAspect('language', 'id');
         $now = time();
 
-        // TODO: Migrate to QueryBuilder for Cross-DB-Engines
-        $statement = '
-          SELECT ref.* FROM sys_file_reference AS ref
-          LEFT JOIN sys_file AS file ON (file.uid=ref.uid_local)
-          LEFT JOIN sys_file_metadata AS meta ON (file.uid=meta.file)
-          LEFT JOIN pages AS p ON (ref.pid=p.uid)
-          WHERE (ref.copyright IS NOT NULL OR meta.copyright!="")
-          AND p.deleted=0 AND p.hidden=0 AND (p.starttime=0 OR p.starttime<=' . $now . ') AND (p.endtime=0 OR p.endtime>='. $now .')
-          AND file.missing=0 AND file.uid IS NOT NULL
-          AND ref.deleted=0 AND ref.hidden=0 AND ref.t3ver_wsid=0 ' . $pidClause . $additionalClause;
+        $queryBuilder = $this->connectionPool->getQueryBuilderForTable('sys_file_reference');
 
-        $preQuery->statement($statement);
+        // Build WHERE constraints
+        $constraints = [
+            $queryBuilder->expr()->eq('ref.sys_language_uid',
+                $queryBuilder->createNamedParameter($sysLanguage, Connection::PARAM_INT)),
+            $queryBuilder->expr()->eq('ref.deleted', 0),
+            $queryBuilder->expr()->eq('ref.hidden', 0),
+            $queryBuilder->expr()->eq('ref.t3ver_wsid', 0),
+            $queryBuilder->expr()->eq('p.deleted', 0),
+            $queryBuilder->expr()->eq('p.hidden', 0),
+            $queryBuilder->expr()->eq('file.missing', 0),
+            $queryBuilder->expr()->isNotNull('file.uid'),
+            $queryBuilder->expr()->or(
+                $queryBuilder->expr()->isNotNull('ref.copyright'),
+                $queryBuilder->expr()->neq('meta.copyright', $queryBuilder->createNamedParameter(''))
+            ),
+            $queryBuilder->expr()->or(
+                $queryBuilder->expr()->eq('p.starttime', 0),
+                $queryBuilder->expr()->lte('p.starttime',
+                    $queryBuilder->createNamedParameter($now, Connection::PARAM_INT))
+            ),
+            $queryBuilder->expr()->or(
+                $queryBuilder->expr()->eq('p.endtime', 0),
+                $queryBuilder->expr()->gte('p.endtime',
+                    $queryBuilder->createNamedParameter($now, Connection::PARAM_INT))
+            )
+        ];
 
-        $preResults = $preQuery->execute(TRUE);
+        // Handle pid filtering
+        if ((bool)$settings['onlyCurrentPage']) {
+            $currentPageId = $this->getRequest()?->getAttribute('frontend.page.information')?->getId();
+            if ($currentPageId) {
+                $constraints[] = $queryBuilder->expr()->eq('ref.pid',
+                    $queryBuilder->createNamedParameter($currentPageId, Connection::PARAM_INT));
+            }
+        } else {
+            if (!empty($settings['rootlines']) && $settings['rootlines'] !== '') {
+                $pidList = $this->extendPidListByChildren($settings['rootlines']);
+                $constraints[] = $queryBuilder->expr()->in('ref.pid', $queryBuilder->createNamedParameter(
+                    \TYPO3\CMS\Core\Utility\GeneralUtility::intExplode(',', $pidList),
+                    Connection::PARAM_INT_ARRAY
+                ));
+            }
+        }
+
+        // Build the query
+        $queryBuilder
+            ->select('ref.*')
+            ->from('sys_file_reference', 'ref')
+            ->leftJoin(
+                'ref',
+                'sys_file',
+                'file',
+                $queryBuilder->expr()->eq('file.uid', $queryBuilder->quoteIdentifier('ref.uid_local'))
+            )
+            ->leftJoin(
+                'file',
+                'sys_file_metadata',
+                'meta',
+                $queryBuilder->expr()->eq('file.uid', $queryBuilder->quoteIdentifier('meta.file'))
+            )
+            ->leftJoin(
+                'ref',
+                'pages',
+                'p',
+                $queryBuilder->expr()->eq('ref.pid', $queryBuilder->quoteIdentifier('p.uid'))
+            )
+            ->where(...$constraints);
+
+        // Handle duplicate images setting
+        if ((int)$settings['displayDuplicateImages'] === 0) {
+            $queryBuilder->groupBy('file.uid');
+        }
+
+        $preResults = $queryBuilder->executeQuery()->fetchAllAssociative();
 
         // Now check if the foreign record has an endtime field which is expired
         $finalRecords = $this->filterPreResultsReturnUids($preResults);
 
         // Final select
-        if(false === empty($finalRecords)) {
-            $finalQuery = $this->createQuery();
-            return $finalQuery->statement('SELECT * FROM sys_file_reference WHERE deleted=0 AND hidden=0 AND uid IN(' . implode(',', $finalRecords) . ')')->execute();
+        if (false === empty($finalRecords)) {
+            $finalQueryBuilder = $this->connectionPool->getQueryBuilderForTable('sys_file_reference');
+            $records = $finalQueryBuilder
+                ->select('*')
+                ->from('sys_file_reference')
+                ->where(
+                    $finalQueryBuilder->expr()->eq('deleted', 0),
+                    $finalQueryBuilder->expr()->eq('hidden', 0),
+                    $finalQueryBuilder->expr()->in('uid', $finalQueryBuilder->createNamedParameter(
+                        $finalRecords,
+                        Connection::PARAM_INT_ARRAY
+                    ))
+                )
+                ->executeQuery()
+                ->fetchAllAssociative();
+        
+            return $this->dataMapper->map(CopyrightReference::class, $records);
         }
-
+    
         return [];
     }
 
@@ -214,6 +281,7 @@ class CopyrightReferenceRepository extends \TYPO3\CMS\Extbase\Persistence\Reposi
      * @param bool $onlyCurrentPage
      * @return string
      * @throws \TYPO3\CMS\Core\Context\Exception\AspectNotFoundException
+     * @depcreated will be removed upcoming versions
      */
     public function getStatementDefaults(string $rootlines, bool $onlyCurrentPage = false) {
         $sysLanguage = (int) $this->context->getPropertyFromAspect('language', 'id');
@@ -253,12 +321,12 @@ class CopyrightReferenceRepository extends \TYPO3\CMS\Extbase\Persistence\Reposi
     /**
      * Recursively fetch all descendants of a given page. MODIFIED:
      * Copied from TYPO3 11's \TYPO3\CMS\Core\Database\QueryGenerator.
-     *
      * @param int $id uid of the page
      * @param int $depth
      * @param int $begin
      * @param string $permClause
      * @return string comma separated list of descendant pages
+     * @throws \Doctrine\DBAL\Exception
      */
     protected function getTreeList(int $id, int $depth, int $begin = 0, string $permClause = '')
     {

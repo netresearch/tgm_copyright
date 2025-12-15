@@ -5,7 +5,7 @@ namespace TGM\TgmCopyright\Updates;
 use TYPO3\CMS\Install\Attribute\UpgradeWizard;
 use TYPO3\CMS\Install\Updates\AbstractListTypeToCTypeUpdate;
 
-#[UpgradeWizard('faqCTypeMigration')]
+#[UpgradeWizard('tgmCopyright_pluginCtypeUpgradeWizard')]
 class TgmCopyrightMainMigration extends AbstractListTypeToCTypeUpdate
 {
     protected function getListTypeToCTypeMapping(): array

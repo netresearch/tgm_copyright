@@ -20,9 +20,16 @@ if (!defined('TYPO3')) {
 	[
 		\TGM\TgmCopyright\Controller\CopyrightController::class => 'sitemap',
     ],
-	// non-cacheable actions
 	[
 		\TGM\TgmCopyright\Controller\CopyrightController::class => 'sitemap',
     ],
     'CType'
+);
+
+/** @var \TYPO3\CMS\Core\Imaging\IconRegistry $iconRegistry */
+$iconRegistry =
+    \TYPO3\CMS\Core\Utility\GeneralUtility::makeInstance(\TYPO3\CMS\Core\Imaging\IconRegistry::class);
+$iconRegistry->registerIcon('tgmcopyright-icon',
+    \TYPO3\CMS\Core\Imaging\IconProvider\SvgIconProvider::class,
+    ['source' => 'EXT:tgm_copyright/Resources/Public/Icons/Extension.svg']
 );

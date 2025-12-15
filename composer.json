@@ -4,6 +4,7 @@
   "description": "TYPO3 Image Copyrights and Image Sitemap",
   "homepage": "https://www.toll-paul.de",
   "license": ["GPL-2.0+"],
+  "version": "4.0.0",
   "keywords": ["TYPO3 CMS", "copyright", "images", "sitemap"],
   "support": {
     "issues": "https://github.com/Schweriner/tgm_copyright/issues"

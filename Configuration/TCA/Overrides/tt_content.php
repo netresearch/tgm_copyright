@@ -6,7 +6,8 @@ defined('TYPO3') or die();
     \TYPO3\CMS\Extbase\Utility\ExtensionUtility::registerPlugin(
         'TgmCopyright',
         'Main',
-        'Picture Copyright List'
+        'Picture Copyright List',
+        'tgmcopyright-icon'
     );
 })();
 
@@ -20,8 +21,8 @@ $GLOBALS['TCA']['tt_content']['types']['tgmcopyright_main']['showitem'] = '
         --div--;LLL:EXT:core/Resources/Private/Language/Form/locallang_tabs.xlf:general,
             --palette--;LLL:EXT:frontend/Resources/Private/Language/locallang_ttc.xlf:palette.general;general,
             --palette--;LLL:EXT:frontend/Resources/Private/Language/locallang_ttc.xlf:palette.headers;headers,
-        --div--;LLL:EXT:bva_faq/Resources/Private/Language/locallang.xlf:tabs.flexform.options,
-            pi_flexform;LLL:EXT:bva_faq/Resources/Private/Language/locallang.xlf:tabs.flexform.settings,
+        --div--;LLL:EXT:tgm_copyright/Resources/Private/Language/locallang.xlf:tabs.flexform.options,
+            pi_flexform;LLL:EXT:tgm_copyright/Resources/Private/Language/locallang.xlf:tabs.flexform.settings,
         --div--;LLL:EXT:frontend/Resources/Private/Language/locallang_ttc.xlf:tabs.appearance,
             --palette--;LLL:EXT:frontend/Resources/Private/Language/locallang_ttc.xlf:palette.frames;frames,
             --palette--;LLL:EXT:frontend/Resources/Private/Language/locallang_ttc.xlf:palette.appearanceLinks;appearanceLinks,
