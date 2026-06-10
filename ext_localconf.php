@@ -26,10 +26,5 @@ if (!defined('TYPO3')) {
     'CType'
 );
 
-/** @var \TYPO3\CMS\Core\Imaging\IconRegistry $iconRegistry */
-$iconRegistry =
-    \TYPO3\CMS\Core\Utility\GeneralUtility::makeInstance(\TYPO3\CMS\Core\Imaging\IconRegistry::class);
-$iconRegistry->registerIcon('tgmcopyright-icon',
-    \TYPO3\CMS\Core\Imaging\IconProvider\SvgIconProvider::class,
-    ['source' => 'EXT:tgm_copyright/Resources/Public/Icons/Extension.svg']
-);
+// Icon registration lives in Configuration/Icons.php. Instantiating the
+// IconRegistry inside ext_localconf.php is forbidden as of TYPO3 v14.
