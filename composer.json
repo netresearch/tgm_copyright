@@ -4,13 +4,15 @@
   "description": "TYPO3 Image Copyrights and Image Sitemap",
   "homepage": "https://www.toll-paul.de",
   "license": ["GPL-2.0+"],
-  "version": "4.0.0",
   "keywords": ["TYPO3 CMS", "copyright", "images", "sitemap"],
   "support": {
     "issues": "https://github.com/Schweriner/tgm_copyright/issues"
   },
   "require": {
-    "typo3/cms-core": "^13.4"
+    "typo3/cms-core": "^13.4 || ^14.3",
+    "typo3/cms-extbase": "^13.4 || ^14.3",
+    "typo3/cms-fluid": "^13.4 || ^14.3",
+    "typo3/cms-frontend": "^13.4 || ^14.3"
   },
   "autoload": {
     "psr-4": {
@@ -23,6 +25,9 @@
   "extra": {
     "typo3/cms": {
       "extension-key": "tgm_copyright"
+    },
+    "branch-alias": {
+      "dev-TYPO3-14": "14.0.x-dev"
     }
   }
 }
