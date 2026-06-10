@@ -84,7 +84,7 @@ class CopyrightController extends ActionController
         $groupedReferences = [];
         $copyrightReferences = $this->copyrightReferenceRepository->findForSitemap($this->settings['rootlines']);
 
-        if (count($copyrightReferences) > 0) {
+        if ($copyrightReferences !== []) {
 
             $this->processExtensionReferences($copyrightReferences);
 
