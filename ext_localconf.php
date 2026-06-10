@@ -25,6 +25,3 @@ if (!defined('TYPO3')) {
     ],
     'CType'
 );
-
-// Icon registration lives in Configuration/Icons.php. Instantiating the
-// IconRegistry inside ext_localconf.php is forbidden as of TYPO3 v14.
