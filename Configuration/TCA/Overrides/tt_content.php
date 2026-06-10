@@ -1,9 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 use TYPO3\CMS\Core\Utility\ExtensionManagementUtility;
 use TYPO3\CMS\Extbase\Utility\ExtensionUtility;
 
-defined('TYPO3') || die();
+defined('TYPO3') || die('Access denied.');
 
 (static function (): void {
     ExtensionUtility::registerPlugin(
@@ -12,15 +14,14 @@ defined('TYPO3') || die();
         'Picture Copyright List',
         'tgmcopyright-icon'
     );
-})();
 
-ExtensionManagementUtility::addPiFlexFormValue(
-    '*',
-    'FILE:EXT:tgm_copyright/Configuration/Flexform/flexform_main.xml',
-    'tgmcopyright_main'
-);
+    ExtensionManagementUtility::addPiFlexFormValue(
+        '*',
+        'FILE:EXT:tgm_copyright/Configuration/Flexform/flexform_main.xml',
+        'tgmcopyright_main'
+    );
 
-$GLOBALS['TCA']['tt_content']['types']['tgmcopyright_main']['showitem'] = '
+    $GLOBALS['TCA']['tt_content']['types']['tgmcopyright_main']['showitem'] = '
         --div--;LLL:EXT:core/Resources/Private/Language/Form/locallang_tabs.xlf:general,
             --palette--;LLL:EXT:frontend/Resources/Private/Language/locallang_ttc.xlf:palette.general;general,
             --palette--;LLL:EXT:frontend/Resources/Private/Language/locallang_ttc.xlf:palette.headers;headers,
@@ -40,3 +41,4 @@ $GLOBALS['TCA']['tt_content']['types']['tgmcopyright_main']['showitem'] = '
             rowDescription,
         --div--;LLL:EXT:core/Resources/Private/Language/Form/locallang_tabs.xlf:extended,
     ';
+})();
