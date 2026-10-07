@@ -13,12 +13,12 @@ defined('TYPO3') || die('Access denied.');
             'label' => 'Copyright',
             'config' => [
                 'type' => 'input',
-                'size' => 20,
+                'size' => 30,
                 'eval' => 'trim',
             ],
         ],
     ];
 
     ExtensionManagementUtility::addTCAcolumns('sys_file_metadata', $copyrightColumn);
-    ExtensionManagementUtility::addFieldsToPalette('sys_file_metadata', '', 'copyright', 'after:title');
+    ExtensionManagementUtility::addToAllTCAtypes('sys_file_metadata', 'copyright', '', 'after:title');
 })();
