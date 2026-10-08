@@ -10,7 +10,8 @@ defined('TYPO3') || die('Access denied.');
     $copyrightColumn = [
         'copyright' => [
             'exclude' => 1,
-            'label' => 'Copyright',
+            'label' => 'LLL:EXT:tgm_copyright/Resources/Private/Language/locallang_db.xlf:sys_file_metadata.copyright',
+            'description' => 'LLL:EXT:tgm_copyright/Resources/Private/Language/locallang_db.xlf:sys_file_metadata.copyright.description',
             'config' => [
                 'type' => 'input',
                 'size' => 30,
