@@ -15,6 +15,9 @@
     "typo3/cms-fluid": "^13.4 || ^14.3",
     "typo3/cms-frontend": "^13.4 || ^14.3"
   },
+  "suggest": {
+    "typo3/cms-filemetadata": "Makes this extension load after it, so the copyright field stays in the file metadata form"
+  },
   "config": {
     "bin-dir": ".build/bin",
     "vendor-dir": ".build/vendor",
