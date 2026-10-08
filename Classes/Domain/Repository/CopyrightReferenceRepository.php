@@ -29,6 +29,7 @@ namespace TGM\TgmCopyright\Domain\Repository;
 use Doctrine\DBAL\Exception;
 use Psr\Http\Message\ServerRequestInterface;
 use TGM\TgmCopyright\Domain\Model\CopyrightReference;
+use TGM\TgmCopyright\Service\DuplicateReferenceFilter;
 use TYPO3\CMS\Core\Context\Context;
 use TYPO3\CMS\Core\Context\Exception\AspectNotFoundException;
 use TYPO3\CMS\Core\Database\Connection;
@@ -50,6 +51,7 @@ class CopyrightReferenceRepository extends Repository
         private readonly ConnectionPool $connectionPool,
         private readonly Context $context,
         private readonly DataMapper $dataMapper,
+        private readonly DuplicateReferenceFilter $duplicateReferenceFilter = new DuplicateReferenceFilter(),
     ) {
         parent::__construct();
     }
@@ -118,7 +120,7 @@ class CopyrightReferenceRepository extends Repository
 
         // Build the query
         $queryBuilder
-            ->select('ref.*')
+            ->select('ref.uid', 'ref.uid_local', 'ref.tablenames', 'ref.uid_foreign')
             ->from('sys_file_reference', 'ref')
             ->leftJoin(
                 'ref',
@@ -138,17 +140,20 @@ class CopyrightReferenceRepository extends Repository
                 'p',
                 $queryBuilder->expr()->eq('ref.pid', $queryBuilder->quoteIdentifier('p.uid'))
             )
-            ->where(...$constraints);
-
-        // Handle duplicate images setting
-        if ((int)$settings['displayDuplicateImages'] === 0) {
-            $queryBuilder->groupBy('file.uid');
-        }
+            ->where(...$constraints)
+            ->orderBy('ref.uid');
 
         $preResults = $queryBuilder->executeQuery()->fetchAllAssociative();
 
         // Now check if the foreign record has an endtime field which is expired
         $finalRecords = $this->filterPreResultsReturnUids($preResults);
+
+        // Apply the setting that decides whether an image is listed more than once
+        $finalRecords = $this->duplicateReferenceFilter->filter(
+            $settings['displayDuplicateImages'] ?? null,
+            $preResults,
+            $finalRecords,
+        );
 
         // Final select
         if ($finalRecords !== []) {
